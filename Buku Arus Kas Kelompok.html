@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buku Arus Kas Kelompok</title>
+<style>
+:root{--bg:#fff;--fg:#1b1f24;--mut:#5f6b76;--card:#f3f6f9;--bd:#d3dae1;--pri:#1f4e78;--prif:#fff;--in:#0a7a3d;--out:#b42318;--inp:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181d;--fg:#e8ecf0;--mut:#9aa6b2;--card:#1d242c;--bd:#323c47;--pri:#6aa6d8;--prif:#0f1419;--in:#4cc98a;--out:#ff8a80;--inp:#10151a}}
+:root[data-theme="dark"]{--bg:#14181d;--fg:#e8ecf0;--mut:#9aa6b2;--card:#1d242c;--bd:#323c47;--pri:#6aa6d8;--prif:#0f1419;--in:#4cc98a;--out:#ff8a80;--inp:#10151a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 Arial,Helvetica,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:0;color:var(--pri)}
+.sub{color:var(--mut);margin:2px 0 12px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+nav button{flex:1;min-width:100px;padding:9px 8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--pri);color:var(--prif);border-color:var(--pri);font-weight:bold}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.card small{color:var(--mut);display:block}.card b{font-size:17px}
+.in{color:var(--in)}.out{color:var(--out)}
+form,.box{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+label{display:block;font-size:12px;color:var(--mut)}
+input,select,textarea{width:100%;padding:7px;border:1px solid var(--bd);border-radius:6px;background:var(--inp);color:var(--fg);font:inherit}
+textarea{min-height:90px}
+.btn{padding:8px 14px;border:0;border-radius:6px;background:var(--pri);color:var(--prif);font:inherit;font-weight:bold;cursor:pointer;margin-top:8px}
+.btn.sec{background:transparent;color:var(--fg);border:1px solid var(--bd)}
+.btn.del{background:transparent;color:var(--out);border:1px solid var(--bd);padding:3px 8px;margin:0;font-weight:normal}
+.scroll{overflow-x:auto;border:1px solid var(--bd);border-radius:10px;margin-bottom:14px}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{background:var(--pri);color:var(--prif);font-size:12px}
+td.n,th.n{text-align:right}
+tr.tot td{font-weight:bold;background:var(--card)}
+.it td input{width:78px;padding:4px;text-align:right}
+.bar{height:8px;border-radius:4px;margin:2px 0}
+h2{font-size:15px;margin:16px 0 8px;color:var(--pri)}
+.hint{color:var(--mut);font-size:12px}
+#ts{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--out);color:#fff;padding:10px 12px;border-radius:8px;display:none;z-index:9}
+.st{font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="jd"></h1>
+<div class="sub" id="sj"></div>
+<nav id="nav"></nav>
+<div id="app"></div>
+<div id="ts"></div>
+</div>
+<script>
+var K="bukukas-kelompok-v1",TABS=[["kas","Buku Kas"],["rekap","Rekap"],["iuran","Iuran Anggota"],["set","Pengaturan"]],tab="kas",armed=false,fb="all",db=null,mode="tunggu",dirty=false;
+var BLN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+function defCfg(){return{nama:"Kelompok Saya",tahun:new Date().getFullYear(),saldoAwal:0,iuran:50000,kategori:["Iuran Anggota","Simpanan","Donasi / Hibah","Hasil Usaha","Operasional","ATK & Cetak","Konsumsi","Kegiatan / Acara","Lain-lain"]}}
+var S={cfg:defCfg(),trx:[],ang:[]};
+function uid(){return"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function toMap(b){if(!Array.isArray(b))return b||{};var o={};b.forEach(function(v,i){if(v)o[i]=v});return o}
+function norm(o){var c=o.cfg||o;return{cfg:Object.assign(defCfg(),{nama:c.nama,tahun:c.tahun,saldoAwal:c.saldoAwal,iuran:c.iuran,kategori:c.kategori}),
+trx:(o.trx||[]).map(function(t){return{id:String(t.id||uid()),tgl:t.tgl,uraian:t.uraian||"",kat:t.kat||"",masuk:+t.masuk||0,keluar:+t.keluar||0,ket:t.ket||""}}),
+ang:(o.ang||o.anggota||[]).map(function(a){return{id:String(a.id||uid()),nama:a.nama||"",bayar:toMap(a.bayar)}})}}
+function loadLocal(){try{var o=JSON.parse(localStorage.getItem(K));if(o)S=norm(o)}catch(e){}}
+function saveLocal(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function rp(n){n=Math.round(n||0);return(n<0?"-":"")+"Rp "+Math.abs(n).toLocaleString("id-ID")}
+function num(v){var n=parseFloat(v);return isNaN(n)?0:n}
+function pad(n){return String(n).padStart(2,"0")}
+function today(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function fmtTgl(t){return t.slice(8,10)+"/"+t.slice(5,7)+"/"+t.slice(0,4)}
+function sorted(){return S.trx.slice().sort(function(a,b){return a.tgl<b.tgl?-1:a.tgl>b.tgl?1:a.id<b.id?-1:1})}
+function toast(m){var t=document.getElementById("ts");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(function(){t.style.display="none"},5000)}
+function w(p){return Promise.resolve(p).catch(function(e){toast(e&&e.code=="revoked"?"Akses dicabut.":"Perubahan ditolak. Anda mungkin hanya punya akses lihat; minta pemilik memberi akses Contributor atau Editor.")})}
+
+/* lapisan data: bersama (db) atau lokal */
+function cfgSave(){if(db)w(db.doc("config/main").set(S.cfg));else saveLocal()}
+function trxAdd(t){if(db)w(db.doc("trx/"+t.id).set(t));else{S.trx.push(t);saveLocal()}}
+function trxDel(id){if(db)w(db.doc("trx/"+id).delete());else{S.trx=S.trx.filter(function(x){return x.id!=id});saveLocal()}}
+function angAdd(a){if(db)w(db.doc("anggota/"+a.id).set(a));else{S.ang.push(a);saveLocal()}}
+function angDel(id){if(db)w(db.doc("anggota/"+id).delete());else{S.ang=S.ang.filter(function(x){return x.id!=id});saveLocal()}}
+function angPay(id,m,v){var a=S.ang.filter(function(x){return x.id==id})[0];if(!a)return;
+if(db){var p={};p[m]=v;w(db.doc("anggota/"+id).update({bayar:p}))}else{a.bayar[m]=v;saveLocal()}}
+function restoreAll(o){var n=norm(o);
+if(db){S.cfg=n.cfg;cfgSave();n.trx.forEach(function(t){w(db.doc("trx/"+t.id).set(t))});n.ang.forEach(function(a){w(db.doc("anggota/"+a.id).set(a))})}
+else{S=n;saveLocal()}}
+function resetAll(){if(db){S.trx.forEach(function(t){trxDel(t.id)});S.ang.forEach(function(a){angDel(a.id)});S.cfg=defCfg();cfgSave()}else{S={cfg:defCfg(),trx:[],ang:[]};saveLocal()}}
+
+function status(){var m={tunggu:"Menyambung ke penyimpanan bersama…",db:"● Data bersama: tersinkron dengan semua pengurus",lokal:"Mode lokal: data hanya ada di perangkat ini",lambat:"Belum bisa terhubung ke penyimpanan bersama; data mungkin belum terbaru"};return m[mode]}
+function tot(){var m=0,k=0;S.trx.forEach(function(t){m+=t.masuk;k+=t.keluar});return{m:m,k:k,s:S.cfg.saldoAwal+m-k}}
+function head(){document.getElementById("jd").textContent="Buku Kas "+S.cfg.nama;
+document.getElementById("sj").innerHTML="Tahun pembukuan "+S.cfg.tahun+' &nbsp;|&nbsp; <span class="st">'+status()+"</span>";document.title="Buku Kas "+S.cfg.nama;
+document.getElementById("nav").innerHTML=TABS.map(function(t){return'<button data-t="'+t[0]+'" class="'+(t[0]==tab?"on":"")+'">'+t[1]+"</button>"}).join("")}
+
+function vKas(){
+var C=S.cfg,all=sorted(),awal=C.saldoAwal,show=all,lbl="";
+if(fb!="all"){var pre=C.tahun+"-"+pad(+fb+1);all.forEach(function(t){if(t.tgl<pre+"-01")awal+=t.masuk-t.keluar});show=all.filter(function(t){return t.tgl.slice(0,7)==pre});lbl=" "+BLN[fb]}
+var m=0,k=0;show.forEach(function(t){m+=t.masuk;k+=t.keluar});var run=awal;
+var rows=show.map(function(t){run+=t.masuk-t.keluar;
+return"<tr><td>"+fmtTgl(t.tgl)+"</td><td>"+esc(t.uraian)+"</td><td>"+esc(t.kat)+'</td><td class="n in">'+(t.masuk?rp(t.masuk):"")+'</td><td class="n out">'+(t.keluar?rp(t.keluar):"")+'</td><td class="n">'+rp(run)+"</td><td>"+esc(t.ket)+'</td><td><button class="btn del" data-del="'+esc(t.id)+'">Hapus</button></td></tr>'}).join("");
+var opt='<option value="all">Semua transaksi</option>'+BLN.map(function(b,i){return'<option value="'+i+'"'+(fb==String(i)?" selected":"")+">"+b+" "+C.tahun+"</option>"}).join("");
+return'<div class="box" style="padding:8px 12px"><label>Tampilkan bulan</label><select id="fbul">'+opt.replace('value="all"',fb=="all"?'value="all" selected':'value="all"')+'</select></div>'+
+'<div class="cards"><div class="card"><small>Saldo awal'+lbl+'</small><b>'+rp(awal)+'</b></div><div class="card"><small>Kas masuk'+lbl+'</small><b class="in">'+rp(m)+'</b></div><div class="card"><small>Kas keluar'+lbl+'</small><b class="out">'+rp(k)+'</b></div><div class="card"><small>Saldo akhir'+lbl+'</small><b>'+rp(awal+m-k)+"</b></div></div>"+
+'<form id="fk"><div class="grid"><div><label>Tanggal</label><input type="date" name="tgl" required value="'+today()+'"></div><div><label>Jenis</label><select name="jenis"><option value="m">Kas Masuk</option><option value="k">Kas Keluar</option></select></div><div><label>Kategori</label><select name="kat">'+C.kategori.map(function(c){return"<option>"+esc(c)+"</option>"}).join("")+'</select></div><div><label>Jumlah (Rp)</label><input type="number" name="jml" min="1" step="any" required inputmode="numeric"></div><div style="grid-column:1/-1"><label>Uraian transaksi</label><input name="uraian" required placeholder="Contoh: Iuran bulan Januari"></div><div style="grid-column:1/-1"><label>No. bukti / keterangan (opsional)</label><input name="ket"></div></div><button class="btn" type="submit">Tambah Transaksi</button></form>'+
+'<div class="scroll"><table><tr><th>Tanggal</th><th>Uraian</th><th>Kategori</th><th class="n">Masuk</th><th class="n">Keluar</th><th class="n">Saldo</th><th>Keterangan</th><th></th></tr>'+(rows||'<tr><td colspan="8" class="hint">Belum ada transaksi'+(lbl?" pada bulan ini":"")+".</td></tr>")+"</table></div>"}
+
+function vRekap(){
+var C=S.cfg,mm=[],kk=[],i;for(i=0;i<12;i++){mm.push(0);kk.push(0)}
+var kat={};C.kategori.forEach(function(c){kat[c]={m:0,k:0}});
+S.trx.forEach(function(t){if(+t.tgl.slice(0,4)!=C.tahun)return;var b=+t.tgl.slice(5,7)-1;mm[b]+=t.masuk;kk[b]+=t.keluar;
+if(!kat[t.kat])kat[t.kat]={m:0,k:0};kat[t.kat].m+=t.masuk;kat[t.kat].k+=t.keluar});
+var mx=Math.max.apply(null,mm.concat(kk).concat([1])),s=C.saldoAwal,tm=0,tk=0,r="";
+for(i=0;i<12;i++){var aw=s;s+=mm[i]-kk[i];tm+=mm[i];tk+=kk[i];
+r+="<tr><td>"+BLN[i]+'</td><td class="n">'+rp(aw)+'</td><td class="n in">'+rp(mm[i])+'</td><td class="n out">'+rp(kk[i])+'</td><td class="n">'+rp(s)+'</td><td style="min-width:120px"><div class="bar" style="background:var(--in);width:'+(mm[i]/mx*100)+'%"></div><div class="bar" style="background:var(--out);width:'+(kk[i]/mx*100)+'%"></div></td></tr>'}
+r+='<tr class="tot"><td>Total</td><td class="n">'+rp(C.saldoAwal)+'</td><td class="n in">'+rp(tm)+'</td><td class="n out">'+rp(tk)+'</td><td class="n">'+rp(s)+"</td><td></td></tr>";
+var kr=Object.keys(kat).map(function(c){return"<tr><td>"+esc(c)+'</td><td class="n in">'+rp(kat[c].m)+'</td><td class="n out">'+rp(kat[c].k)+"</td></tr>"}).join("");
+return'<h2>Rekap bulanan '+C.tahun+'</h2><div class="scroll"><table><tr><th>Bulan</th><th class="n">Saldo awal</th><th class="n">Masuk</th><th class="n">Keluar</th><th class="n">Saldo akhir</th><th>Grafik</th></tr>'+r+'</table></div><p class="hint">Hijau = kas masuk, merah = kas keluar. Saldo awal Januari diambil dari Pengaturan.</p><h2>Rekap per kategori</h2><div class="scroll"><table style="min-width:360px"><tr><th>Kategori</th><th class="n">Masuk</th><th class="n">Keluar</th></tr>'+kr+"</table></div>"}
+
+function vIuran(){
+var wajib=S.cfg.iuran*12,sm=0,tg=0,rows=S.ang.map(function(a){var t=0,m;for(m=0;m<12;m++)t+=+a.bayar[m]||0;sm+=t;var tn=Math.max(0,wajib-t);tg+=tn;
+var cells="";for(m=0;m<12;m++)cells+='<td><input type="number" min="0" data-a="'+esc(a.id)+'" data-m="'+m+'" value="'+(a.bayar[m]||"")+'"></td>';
+return'<tr class="it"><td>'+esc(a.nama)+"</td>"+cells+'<td class="n">'+rp(t)+'</td><td class="n out">'+rp(tn)+'</td><td><button class="btn del" data-da="'+esc(a.id)+'">Hapus</button></td></tr>'}).join("");
+return'<form id="fa" class="box" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap"><div style="flex:1;min-width:180px"><label>Tambah anggota</label><input name="nama" required placeholder="Nama anggota"></div><button class="btn" style="margin:0" type="submit">Tambah</button></form><p class="hint">Isi nominal yang dibayar tiap bulan. Iuran per bulan: '+rp(S.cfg.iuran)+" (ubah di Pengaturan). Catat juga uangnya di Buku Kas.</p>"+
+'<div class="scroll"><table style="min-width:1250px"><tr><th>Nama</th>'+BLN.map(function(b){return"<th>"+b.slice(0,3)+"</th>"}).join("")+'<th class="n">Total</th><th class="n">Tunggakan</th><th></th></tr>'+(rows||'<tr><td colspan="16" class="hint">Belum ada anggota.</td></tr>')+'<tr class="tot"><td>Total</td><td colspan="12"></td><td class="n">'+rp(sm)+'</td><td class="n out">'+rp(tg)+"</td><td></td></tr></table></div>"}
+
+function vSet(){var C=S.cfg;
+return'<form id="fs" class="box"><div class="grid"><div><label>Nama kelompok</label><input name="nama" value="'+esc(C.nama)+'" required></div><div><label>Tahun pembukuan</label><input type="number" name="tahun" value="'+C.tahun+'" required></div><div><label>Saldo awal kas (Rp)</label><input type="number" name="saldo" value="'+C.saldoAwal+'"></div><div><label>Iuran per anggota per bulan (Rp)</label><input type="number" name="iuran" value="'+C.iuran+'"></div></div><label style="margin-top:8px">Daftar kategori (satu per baris)</label><textarea name="kat">'+esc(C.kategori.join("\n"))+'</textarea><button class="btn" type="submit">Simpan Pengaturan</button></form>'+
+'<div class="box"><b>Berbagi dengan pengurus</b><p class="hint">'+(mode=="db"?"Data ini tersimpan di penyimpanan bersama. Pengurus yang ingin ikut mencatat harus diundang lewat menu Bagikan (Share) pada halaman ini dengan akses Contributor atau Editor. Pengguna dengan akses lihat saja hanya bisa membaca.":"Saat ini mode lokal: data belum dibagikan. Buka halaman ini dari akun yang sudah login agar penyimpanan bersama aktif.")+'</p></div>'+
+'<div class="box"><b>Cadangan dan pemindahan data</b><p class="hint">Salin teks cadangan dan simpan di tempat aman. Untuk memasukkan data lama dari perangkat ini ke penyimpanan bersama, klik Ambil data lama, lalu Pulihkan.</p><textarea id="bk" placeholder="Teks cadangan"></textarea><button class="btn sec" id="bshow">Tampilkan cadangan</button> <button class="btn sec" id="bold">Ambil data lama perangkat ini</button> <button class="btn sec" id="brest">Pulihkan dari teks</button> <button class="btn del" id="breset" style="padding:8px 12px">'+(armed?"Klik lagi untuk menghapus SEMUA data":"Hapus semua data")+'</button><p class="hint" id="bmsg"></p></div>'}
+
+function render(){head();dirty=false;document.getElementById("app").innerHTML={kas:vKas,rekap:vRekap,iuran:vIuran,set:vSet}[tab]()}
+function soft(){var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&document.getElementById("app").contains(a)){dirty=true;head()}else render()}
+document.addEventListener("click",function(e){var t=e.target;
+if(t.dataset.t){tab=t.dataset.t;armed=false;render()}
+else if(t.dataset.del){trxDel(t.dataset.del);render()}
+else if(t.dataset.da){angDel(t.dataset.da);render()}
+else if(t.id=="bshow"){document.getElementById("bk").value=JSON.stringify(S)}
+else if(t.id=="bold"){var o=null;try{o=localStorage.getItem(K)}catch(x){}document.getElementById("bk").value=o||"";document.getElementById("bmsg").textContent=o?"Data lama ditemukan. Klik Pulihkan untuk memasukkannya.":"Tidak ada data lama di perangkat ini."}
+else if(t.id=="brest"){try{var j=JSON.parse(document.getElementById("bk").value);if(!j||!(j.trx||j.cfg))throw 0;restoreAll(j);render()}catch(x){document.getElementById("bmsg").textContent="Teks cadangan tidak valid."}}
+else if(t.id=="breset"){if(!armed){armed=true;render()}else{armed=false;resetAll();render()}}});
+document.addEventListener("submit",function(e){e.preventDefault();var f=e.target,d=new FormData(f);
+if(f.id=="fk"){var j=num(d.get("jml"));trxAdd({id:uid(),tgl:d.get("tgl"),uraian:d.get("uraian").trim(),kat:d.get("kat"),masuk:d.get("jenis")=="m"?j:0,keluar:d.get("jenis")=="k"?j:0,ket:d.get("ket").trim()})}
+else if(f.id=="fa"){angAdd({id:uid(),nama:d.get("nama").trim(),bayar:{}})}
+else if(f.id=="fs"){var C=S.cfg;C.nama=d.get("nama").trim()||C.nama;C.tahun=Math.round(num(d.get("tahun")))||C.tahun;C.saldoAwal=num(d.get("saldo"));C.iuran=num(d.get("iuran"));
+var k=d.get("kat").split("\n").map(function(x){return x.trim()}).filter(Boolean);if(k.length)C.kategori=k;cfgSave()}
+render()});
+document.addEventListener("change",function(e){var t=e.target;
+if(t.id=="fbul"){fb=t.value;render()}
+else if(t.dataset.a&&t.dataset.m!=null){angPay(t.dataset.a,t.dataset.m,num(t.value));render()}});
+
+function lokal(){if(mode=="db")return;mode="lokal";loadLocal();render()}
+(function(){var tm=setTimeout(function(){if(mode=="tunggu"){mode="lambat";head()}},10000);
+if(!window.claude||!claude.use){lokal();return}
+claude.use("db").then(function(d){clearTimeout(tm);if(!d){lokal();return}db=d;
+var err=function(){mode="lambat";head()},ok=function(){mode="db"};
+db.doc("config/main").onSnapshot(function(s){ok();if(s.exists)S.cfg=Object.assign(defCfg(),s.data());soft()},err);
+db.collection("trx").onSnapshot(function(s){ok();S.trx=s.docs.map(function(x){return Object.assign({id:x.id},x.data())});soft()},err);
+db.collection("anggota").onSnapshot(function(s){ok();S.ang=s.docs.map(function(x){var o=x.data();return{id:x.id,nama:o.nama||"",bayar:o.bayar||{}}});soft()},err);
+render()}).catch(function(){clearTimeout(tm);lokal()});
+render()})();
+</script>
+</body>
+</html>
